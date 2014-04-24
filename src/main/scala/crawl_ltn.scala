@@ -43,7 +43,7 @@ object Main extends LazyLogging {
     val articleUrls = extractAllUrls(urls, baseUrl, articleUrlPattern)
     for (articleUrl <- articleUrls) {
       val pattern = "engno=([0-9]+)".r
-      extractArticle(articleUrl) match {
+      retry(5)(extractArticle(articleUrl)) match {
         case Some(article) =>
           val id = pattern.findFirstMatchIn(article.url).get.group(1)
           writeArticleToFile(article, new File(output_dir, id))
@@ -61,9 +61,21 @@ object Main extends LazyLogging {
     pw.close()
   }
 
-  def extractArticle(url: String, retry_count: Int = 0): Option[Article] = {
+  @annotation.tailrec
+  def retry[T](n: Int)(func: => Option[T] ): Option[T] = {
+    func match {
+      case some @ Some(_) => some
+      case None =>
+        if (n > 1) {
+          logger.info(s"Retry ...")
+          retry(n - 1)(func)
+        } else None
+    }
+  }
+
+  def extractArticle(url: String ): Option[Article] = {
     val driver = new HtmlUnitDriver
-    logger.info(s"Fetching(${retry_count}): ${url}")
+    logger.info(s"Fetching: ${url}")
     Thread.sleep(500)
     try {
       driver.get(url)
@@ -73,11 +85,8 @@ object Main extends LazyLogging {
         driver.findElementById("newsContent").getText
       ))
     } catch {
-      case e: java.net.SocketException if retry_count < 10 =>
-        extractArticle(url, retry_count + 1)
       case _: Throwable => None
     }
-
   }
 
   def getWebpage(url: String): String = {
@@ -86,12 +95,10 @@ object Main extends LazyLogging {
     Source.fromURL(url).mkString
   }
 
-
   def extractUrls(url: String, pattern: Regex): List[String] = 
     pattern.findAllIn(getWebpage(url)).toList
 
   def extractAllUrls(urls: List[String], baseUrl :String, pattern: Regex): List[String] =
     urls.flatMap(extractUrls(_, pattern)).map(baseUrl + _)
-
 
 }
