@@ -8,7 +8,7 @@ import org.openqa.selenium.htmlunit.HtmlUnitDriver
 
 
 case class Article(url: String, title:String, content:String )
-case class Config(outputDir: File = new File("."), pageStart: Int = 1, pageEnd: Int = 212)
+case class Config(outputDir: File = new File("."), pageStart: Int = 1, pageEnd: Int = 251)
 
 object Main extends LazyLogging {
 
@@ -47,7 +47,7 @@ object Main extends LazyLogging {
         case Some(article) =>
           val id = pattern.findFirstMatchIn(article.url).get.group(1)
           writeArticleToFile(article, new File(output_dir, id))
-        case None => logger.error("Fetch Failed: ${articleUrl}")
+        case None => logger.error(s"Fetch Failed: ${articleUrl}")
       }
     }
   }
@@ -81,7 +81,7 @@ object Main extends LazyLogging {
       driver.get(url)
       Some(Article(
         url,
-        driver.findElementByXPath("""//div[@class='title']""").getText,
+        driver.findElementByXPath("""//h2[@class='title']""").getText,
         driver.findElementById("newsContent").getText
       ))
     } catch {
